@@ -7,13 +7,16 @@ use spirv_std::{
 #[spirv(compute(threads(64)))]
 pub fn index_vec2(
     #[spirv(global_invocation_id)] id: UVec3,
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] a: &[Vec2],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] a: &mut [Vec2],
 ) {
     let i = id.x as usize;
-    let mut val = a[i];
+    let val = &mut a[i];
 
+    // This works fine:
     val.x += i as f32;
     val.y += i as f32 * 2.0;
+
+    // a[i] = val;
     // this compiles fine:
     // let v0 = val[0];
     // val[1] = 10.0;

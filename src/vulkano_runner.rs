@@ -20,7 +20,7 @@ use vulkano::{
     memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator},
     pipeline::{
         compute::{ComputePipeline, ComputePipelineCreateInfo},
-        layout::{PipelineLayout, PipelineLayoutCreateInfo, PushConstantRange},
+        layout::{PipelineLayout, PipelineLayoutCreateInfo},
         Pipeline, PipelineBindPoint, PipelineShaderStageCreateInfo,
     },
     shader::{ShaderModule, ShaderStages},
@@ -29,9 +29,6 @@ use vulkano::{
 };
 
 use crate::{KERNEL_ENTRY_POINT, WORKGROUP_SIZE};
-
-#[derive(Debug)]
-pub struct VulkanoError(pub String);
 
 pub struct VulkanoRunner {
     device: Arc<Device>,
@@ -45,21 +42,19 @@ pub struct VulkanoRunner {
 
 impl VulkanoRunner {
     /// Create a new Vulkano runner
-    pub fn new() -> Result<Self, VulkanoError> {
+    pub fn new() -> Self {
         // 1. Load the Vulkan library
-        let library = VulkanLibrary::new()
-            .map_err(|e| VulkanoError(format!("Failed to load Vulkan: {e}")))?;
+        let library = VulkanLibrary::new().unwrap();
 
         // 2. Create instance
-        let instance = Instance::new(library, InstanceCreateInfo::default())
-            .map_err(|e| VulkanoError(format!("Failed to create instance: {e}")))?;
+        let instance = Instance::new(library, InstanceCreateInfo::default()).unwrap();
 
         // 3. Pick first physical device with a compute queue
         let physical = instance
             .enumerate_physical_devices()
-            .map_err(|e| VulkanoError(format!("Enumerate physical devices failed: {e}")))?
+            .unwrap()
             .next()
-            .ok_or_else(|| VulkanoError("No vulkan devices".to_string()))?;
+            .unwrap();
 
         let device_name = physical.properties().device_name.clone();
 
@@ -70,7 +65,7 @@ impl VulkanoRunner {
             .enumerate()
             .find(|(_, q)| q.queue_flags.contains(vulkano::device::QueueFlags::COMPUTE))
             .map(|(i, q)| (i as u32, q.clone()))
-            .ok_or(VulkanoError("No compute queues".to_string()))?;
+            .unwrap();
 
         // 5. Create logical device + queue
         let (device, mut queues) = Device::new(
@@ -87,11 +82,9 @@ impl VulkanoRunner {
                 ..Default::default()
             },
         )
-        .map_err(|e| VulkanoError(format!("Failed to create device: {e}")))?;
+        .unwrap();
 
-        let queue = queues
-            .next()
-            .ok_or_else(|| VulkanoError("Failed to get compute queue".into()))?;
+        let queue = queues.next().unwrap();
 
         // 6. Memory allocator
         let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
@@ -107,23 +100,16 @@ impl VulkanoRunner {
         // 7. Create shader module from embedded SPIR-V
         let kernel_bytes = crate::KERNEL_SPIRV;
         // Convert SPIR-V bytes to words then create shader module
-        let words = vulkano::shader::spirv::bytes_to_words(kernel_bytes)
-            .map_err(|e| VulkanoError(format!("Invalid SPIR-V bytes: {e}")))?;
+        let words = vulkano::shader::spirv::bytes_to_words(kernel_bytes).unwrap();
         let shader_module = unsafe {
             ShaderModule::new(
                 device.clone(),
                 vulkano::shader::ShaderModuleCreateInfo::new(&words),
             )
         }
-        .map_err(|e| VulkanoError(format!("Failed to create shader module: {e:?}")))?;
+        .unwrap();
 
-        let entry_point = shader_module
-            .entry_point(KERNEL_ENTRY_POINT)
-            .ok_or_else(|| {
-                VulkanoError(format!(
-                    "Entry point '{KERNEL_ENTRY_POINT}' not found in SPIR-V"
-                ))
-            })?;
+        let entry_point = shader_module.entry_point(KERNEL_ENTRY_POINT).unwrap();
 
         // Descriptor set layout (binding 0: storage buffer)
         let mut binding0 =
@@ -139,7 +125,7 @@ impl VulkanoRunner {
                 ..Default::default()
             },
         )
-        .map_err(|e| VulkanoError(format!("Failed to create descriptor set layout: {e}")))?;
+        .unwrap();
 
         // Pipeline layout + push constants
         let pipeline_layout = PipelineLayout::new(
@@ -150,15 +136,14 @@ impl VulkanoRunner {
                 ..Default::default()
             },
         )
-        .map_err(|e| VulkanoError(format!("Failed to create pipeline layout: {e}")))?;
+        .unwrap();
 
         // Build stage and compute pipeline
         let stage = PipelineShaderStageCreateInfo::new(entry_point.clone());
         let pipeline_info = ComputePipelineCreateInfo::stage_layout(stage, pipeline_layout.clone());
-        let pipeline = ComputePipeline::new(device.clone(), None, pipeline_info)
-            .map_err(|e| VulkanoError(format!("Failed to create compute pipeline: {e}")))?;
+        let pipeline = ComputePipeline::new(device.clone(), None, pipeline_info).unwrap();
 
-        Ok(Self {
+        Self {
             device,
             queue,
             pipeline,
@@ -166,10 +151,10 @@ impl VulkanoRunner {
             descriptor_set_allocator,
             command_buffer_allocator,
             device_name,
-        })
+        }
     }
 
-    pub fn run_pass(&self, data: &mut [Vec2]) -> Result<(), VulkanoError> {
+    pub fn run_pass(&self, data: &mut [Vec2]) {
         // Allocate a CPU visible buffer, copy input, run compute, read back
         let len = data.len();
 
@@ -189,7 +174,7 @@ impl VulkanoRunner {
             },
             data.iter().copied(),
         )
-        .map_err(|e| VulkanoError(format!("Failed to create buffer: {e}")))?;
+        .unwrap();
 
         // Create descriptor set (binding 0: storage buffer)
         let layout = self
@@ -198,7 +183,7 @@ impl VulkanoRunner {
             .set_layouts()
             .get(0)
             .cloned()
-            .ok_or_else(|| VulkanoError("Pipeline missing descriptor set layout 0".into()))?;
+            .unwrap();
 
         let set = DescriptorSet::new(
             self.descriptor_set_allocator.clone(),
@@ -206,7 +191,7 @@ impl VulkanoRunner {
             [WriteDescriptorSet::buffer(0, buffer.clone())],
             [],
         )
-        .map_err(|e| VulkanoError(format!("Failed to create descriptor set: {e}")))?;
+        .unwrap();
 
         // Build command buffer
         let mut builder = AutoCommandBufferBuilder::primary(
@@ -214,11 +199,11 @@ impl VulkanoRunner {
             self.queue.queue_family_index(),
             CommandBufferUsage::OneTimeSubmit,
         )
-        .map_err(|e| VulkanoError(format!("Failed to create command buffer: {e}")))?;
+        .unwrap();
 
         builder
             .bind_pipeline_compute(self.pipeline.clone())
-            .map_err(|e| VulkanoError(format!("Failed to bind compute pipeline: {e}")))?;
+            .unwrap();
         builder
             .bind_descriptor_sets(
                 PipelineBindPoint::Compute,
@@ -226,36 +211,26 @@ impl VulkanoRunner {
                 0,
                 set,
             )
-            .map_err(|e| VulkanoError(format!("Failed to bind descriptor sets: {e}")))?;
+            .unwrap();
 
         // Dispatch
         let num_workgroups = len.div_ceil(WORKGROUP_SIZE) as u32;
         unsafe {
-            builder
-                .dispatch([num_workgroups, 1, 1])
-                .map_err(|e| VulkanoError(format!("Failed to record dispatch: {e}")))?;
+            builder.dispatch([num_workgroups, 1, 1]).unwrap();
         }
 
-        let command_buffer = builder
-            .build()
-            .map_err(|e| VulkanoError(format!("Failed to build command buffer: {e}")))?;
+        let command_buffer = builder.build().unwrap();
 
         // Execute + wait
         let future = sync::now(self.device.clone())
             .then_execute(self.queue.clone(), command_buffer)
-            .map_err(|e| VulkanoError(format!("Failed to submit: {e}")))?
+            .unwrap()
             .then_signal_fence_and_flush()
-            .map_err(|e| VulkanoError(format!("Failed to flush: {e}")))?;
-        future
-            .wait(None)
-            .map_err(|e| VulkanoError(format!("Failed waiting on GPU: {e}")))?;
+            .unwrap();
+        future.wait(None).unwrap();
 
         // Read back results (buffer is host visible)
-        let content = buffer
-            .read()
-            .map_err(|e| VulkanoError(format!("Failed to map buffer: {e}")))?;
+        let content = buffer.read().unwrap();
         data.copy_from_slice(&content[..len]);
-
-        Ok(())
     }
 }
