@@ -12,11 +12,11 @@ pub fn index_vec_2(
     let i = id.x as usize;
     let val = a[i];
 
-    // this is ok:
+    // this compiles fine:
     val[0];
 
     // this fails to compile::
-    // for j in 0..2 {
-    //     let _v = val[j];
-    // }
+    for j in 0..2 {
+        let _v = val[j];
+    }
 }
