@@ -78,3 +78,7 @@ version = "0.9.0"
 source = "git+https://github.com/rust-gpu/rust-gpu?branch=main#e767f24f2565baf1a71bbaf84d453d181cab2417"
 
 _(main as of 2025-10-27)_
+
+
+## Note:
+This is just a minimal repro for the issue; in a bigger project, I'm able to build successfully when I add `.capability(Capability::VariablePointers)`, but then I get a segfault when trying to run the shader.
