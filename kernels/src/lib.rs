@@ -28,6 +28,7 @@ pub fn index_vec2(
     // To get this to work correctly, you need to **comment out** the code below, then cargo run with the features enabled. That should run without error. **Then** uncomment the code below and run again with the features enabled, and it should work.
     for j in 0..2 {
         let v = val[j];
-        val[j] = v + (i * (j + 1)) as f32 * 0.00001;
+        val[j] = v + (i * (j + 1)) as f32 * 0.00003;
+        val[j] -= 1.0;
     }
 }
