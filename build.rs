@@ -1,4 +1,5 @@
 fn main() {
+    println!("cargo:rerun-if-changed=kernel/src");
     build_spirv_kernel();
 }
 
@@ -9,8 +10,15 @@ fn build_spirv_kernel() {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let kernels_path = PathBuf::from(manifest_dir).join("kernels");
 
-    let result = SpirvBuilder::new(kernels_path, "spirv-unknown-vulkan1.4")
-        .scalar_block_layout(true)
+    let builder =
+        SpirvBuilder::new(kernels_path, "spirv-unknown-vulkan1.4").scalar_block_layout(true);
+
+    #[cfg(feature = "variable_pointers")]
+    let builder = builder.capability(spirv_builder::Capability::VariablePointers);
+    #[cfg(feature = "variable_pointers_storage_buffer")]
+    let builder = builder.capability(spirv_builder::Capability::VariablePointersStorageBuffer);
+
+    let result = builder
         .print_metadata(spirv_builder::MetadataPrintout::Full)
         .build()
         .unwrap();

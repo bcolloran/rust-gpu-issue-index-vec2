@@ -37,7 +37,6 @@ pub struct VulkanoRunner {
     memory_allocator: Arc<StandardMemoryAllocator>,
     descriptor_set_allocator: Arc<StandardDescriptorSetAllocator>,
     command_buffer_allocator: Arc<StandardCommandBufferAllocator>,
-    device_name: String,
 }
 
 impl VulkanoRunner {
@@ -55,8 +54,6 @@ impl VulkanoRunner {
             .unwrap()
             .next()
             .unwrap();
-
-        let device_name = physical.properties().device_name.clone();
 
         // 4. Select a queue family that supports compute
         let (queue_family_index, _q_props) = physical
@@ -77,6 +74,12 @@ impl VulkanoRunner {
                 }],
                 enabled_features: DeviceFeatures {
                     vulkan_memory_model: true,
+
+                    #[cfg(feature = "variable_pointers")]
+                    variable_pointers: true,
+                    #[cfg(feature = "variable_pointers_storage_buffer")]
+                    variable_pointers_storage_buffer: true,
+
                     ..Default::default()
                 },
                 ..Default::default()
@@ -150,7 +153,6 @@ impl VulkanoRunner {
             memory_allocator,
             descriptor_set_allocator,
             command_buffer_allocator,
-            device_name,
         }
     }
 

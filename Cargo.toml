@@ -7,6 +7,10 @@ name = "rust-gpu-issue-index-vec2"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+variable_pointers = []
+variable_pointers_storage_buffer = []
+
 [workspace.dependencies]
 spirv-std = { git = "https://github.com/rust-gpu/rust-gpu", branch = "main", features = [
   "bytemuck",

@@ -16,13 +16,18 @@ pub fn index_vec2(
     val.x += i as f32;
     val.y += i as f32 * 2.0;
 
-    // a[i] = val;
-    // this compiles fine:
-    // let v0 = val[0];
-    // val[1] = 10.0;
+    // this compiles and runs with:
+    // `cargo run --features variable_pointers variable_pointers_storage_buffer`
+    let v0 = val[0];
+    val[1] = v0 + 0.01;
 
-    // this fails to compile::
-    // for j in 0..2 {
-    //     let _v = val[j];
-    // }
+    // this fails to compile with plain `cargo run`, which provides an error message about missing capabilities.
+    //
+    // However: if you enable those capabilities, the code compiles but segfaults at runtime.
+    //
+    // To get this to work correctly, you need to **comment out** the code below, then cargo run with the features enabled. That should run without error. **Then** uncomment the code below and run again with the features enabled, and it should work.
+    for j in 0..2 {
+        let v = val[j];
+        val[j] = v + (i * (j + 1)) as f32 * 0.00001;
+    }
 }
