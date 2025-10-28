@@ -8,10 +8,14 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-spirv-std = { git = "https://github.com/rust-gpu/rust-gpu", branch = "main" }
+spirv-std = { git = "https://github.com/rust-gpu/rust-gpu", branch = "main", features = [
+  "bytemuck",
+] }
 
 [dependencies]
 spirv-std = { workspace = true }
+vulkano = { version = "0.35.2" }
+
 
 [build-dependencies]
 spirv-builder = { git = "https://github.com/rust-gpu/rust-gpu", branch = "main" }
